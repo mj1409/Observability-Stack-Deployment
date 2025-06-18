@@ -1,24 +1,39 @@
 provider "aws" {
-  region = "ap-south-1" 
+  region = "ap-south-1"
 }
 
+# IAM Group for Observability Stack
+resource "aws_iam_group" "observability_group" {
+  name = "EKSObservabilityGroup"
+}
+
+# IAM User
 resource "aws_iam_user" "observability_user" {
-  name = var.iam_user_name
+  name           = var.iam_user_name
+  force_destroy  = true  # helps during destroy if access keys exist
   tags = {
     Purpose = "EKS Observability Stack"
   }
 }
 
+# IAM Group Membership
+resource "aws_iam_user_group_membership" "membership" {
+  user   = aws_iam_user.observability_user.name
+  groups = [aws_iam_group.observability_group.name]
+}
+
+# IAM Policy for Observability
 resource "aws_iam_policy" "observability_policy" {
   name        = var.policy_name
   description = "Least privilege policy for EKS Observability setup"
+
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Sid      = "EKSClusterManagement",
-        Effect   = "Allow",
-        Action   = [
+        Sid    = "EKSClusterManagement",
+        Effect = "Allow",
+        Action = [
           "eks:*",
           "ec2:Describe*",
           "ec2:CreateTags",
@@ -44,8 +59,8 @@ resource "aws_iam_policy" "observability_policy" {
           "s3:DeleteObject"
         ],
         Resource = [
-          "arn:aws:s3:::my-observability-tfstate-bucket",
-          "arn:aws:s3:::my-observability-tfstate-bucket/*"
+          "arn:aws:s3:::${var.tfstate_bucket_name}",
+          "arn:aws:s3:::${var.tfstate_bucket_name}/*"
         ]
       },
       {
@@ -64,11 +79,13 @@ resource "aws_iam_policy" "observability_policy" {
   })
 }
 
-resource "aws_iam_user_policy_attachment" "attach_policy" {
-  user       = aws_iam_user.observability_user.name
+# Attach Policy to Group
+resource "aws_iam_group_policy_attachment" "group_policy" {
+  group      = aws_iam_group.observability_group.name
   policy_arn = aws_iam_policy.observability_policy.arn
 }
 
+# Create Access Key for the IAM User
 resource "aws_iam_access_key" "access_key" {
   user = aws_iam_user.observability_user.name
 }
