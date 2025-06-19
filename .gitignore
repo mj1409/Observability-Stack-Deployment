@@ -1,0 +1,11 @@
+# Ignore Terraform local state and providers
+.terraform/
+*.tfstate
+*.tfstate.backup
+crash.log
+terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
